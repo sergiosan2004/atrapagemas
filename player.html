@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="game.css">
+  <title>Atrapagemas — Jugar</title>
+  <style>
+    body { min-height: 100vh; }
+
+    .game-layout {
+      display: grid;
+      grid-template-columns: 1fr 240px;
+      gap: 1.2rem;
+      padding: 1.2rem;
+      max-width: 1050px;
+      margin: 0 auto;
+      align-items: start;
+    }
+
+    /* ── Cuadrícula ── */
+    .grid-wrapper { display: flex; flex-direction: column; gap: 0.8rem; }
+
+    .grid-section-label {
+      font-size: 0.68rem; letter-spacing: 0.22em; text-transform: uppercase;
+      color: rgba(150,190,255,0.4); display: flex; align-items: center; gap: 0.7rem;
+    }
+    .grid-section-label::after { content:''; flex:1; height:1px; background:rgba(100,160,255,0.08); }
+
+    .gem-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+    }
+
+    /* Cada celda */
+    .gem-cell {
+      aspect-ratio: 1;
+      border-radius: 7px;
+      border: 1px solid rgba(100,160,255,0.12);
+      background: #0a0e20;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    /* Imagen: siempre visible pero bloqueada en gris */
+    .gem-cell img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      transition: filter 0.35s ease;
+    }
+
+    /* BLOQUEADA — misma fila activa: perfecta y clara, cursor pointer */
+    .gem-cell.active-row {
+      cursor: pointer;
+      border-color: rgba(0,200,255,0.2);
+    }
+    .gem-cell.active-row img {
+      filter: none;
+    }
+    .gem-cell.active-row:hover {
+      transform: scale(1.07);
+      box-shadow: 0 0 16px rgba(0,200,255,0.25);
+      border-color: rgba(0,200,255,0.45);
+      z-index: 2;
+    }
+    .gem-cell.active-row:hover img {
+      filter: brightness(1.1);
+    }
+
+    /* BLOQUEADA — fila futura: muy oscura, sin cursor */
+    .gem-cell.locked-row img {
+      filter: grayscale(100%) brightness(0.1) contrast(0.6);
+    }
+    .gem-cell.locked-row { cursor: not-allowed; border-color: rgba(60,80,150,0.1); }
+
+    /* DESBLOQUEADA — difuminada con blur */
+    .gem-cell.revealed img {
+      filter: blur(8px) brightness(0.3);
+    }
+    .gem-cell.revealed {
+      border-color: rgba(0,220,150,0.35);
+      box-shadow: 0 0 8px rgba(0,220,150,0.15);
+      cursor: default;
+    }
+
+    /* Indicador candado sobre imagen bloqueada */
+    .lock-icon {
+      display: none;
+    }
+    .gem-cell.revealed    .lock-icon { display: none; }
+    .gem-cell.locked-row  .lock-icon { display: none; }
+
+    /* Tick de completada */
+    .revealed-tick {
+      position: absolute; top: 3px; right: 4px;
+      font-size: 0.65rem; color: #00ee88;
+      text-shadow: 0 0 4px #00ee88;
+    }
+
+    /* Separador de filas */
+    .row-divider {
+      grid-column: 1 / -1;
+      height: 2px;
+      background: rgba(100,160,255,0.06);
+      border-radius: 1px;
+      margin: 2px 0;
+    }
+    .row-divider.active {
+      background: linear-gradient(90deg, transparent, rgba(0,200,255,0.25), transparent);
+    }
+
+    /* ── Modal de código ── */
+    .code-modal-bg {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(3,6,18,0.88);
+      backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .code-modal-bg.hidden { display: none; }
+
+    .code-modal {
+      background: rgba(10,16,45,0.95);
+      border: 1px solid rgba(100,160,255,0.2);
+      border-radius: 16px;
+      padding: 2.2rem 2.5rem;
+      width: 320px;
+      text-align: center;
+      box-shadow: 0 0 60px rgba(0,100,255,0.15);
+    }
+
+    .code-modal-gem {
+      width: 80px; height: 80px;
+      margin: 0 auto 1rem;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(100,160,255,0.2);
+    }
+    .code-modal-gem img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(100%) brightness(0.35); }
+
+    .code-modal-title {
+      font-family: 'Cinzel', serif; font-size: 0.8rem;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      color: rgba(150,190,255,0.6); margin-bottom: 0.3rem;
+    }
+    .code-modal-subtitle {
+      font-size: 0.82rem; color: rgba(150,190,255,0.45); margin-bottom: 1.5rem;
+    }
+
+    .code-inputs {
+      display: flex; gap: 0.7rem; justify-content: center; margin-bottom: 1.4rem;
+    }
+    .code-digit {
+      width: 52px; height: 62px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(100,160,255,0.2); border-radius: 10px;
+      color: #d0eeff; font-size: 1.8rem; font-weight: 700;
+      text-align: center; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .code-digit:focus { border-color: rgba(0,200,255,0.5); box-shadow: 0 0 12px rgba(0,200,255,0.1); }
+    .code-digit.error { border-color: rgba(255,80,100,0.5); box-shadow: 0 0 12px rgba(255,80,100,0.1); animation: shake 0.35s; }
+    @keyframes shake {
+      0%,100%{transform:translateX(0);} 20%,60%{transform:translateX(-5px);} 40%,80%{transform:translateX(5px);}
+    }
+
+    .code-modal-btns { display: flex; gap: 0.7rem; }
+    .code-modal-btns .btn { flex: 1; justify-content: center; font-size: 0.82rem; padding: 0.65rem 1rem; }
+
+    /* ── Overlay de espera ── */
+    .wait-overlay {
+      position: fixed; inset: 0; z-index: 400;
+      background: rgba(3,6,18,0.92); backdrop-filter: blur(14px);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5rem;
+    }
+    .wait-overlay.hidden { display: none; }
+    .wait-icon { font-size: 3.5rem; animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.1);} }
+    .wait-title { font-family:'Cinzel',serif; font-size:1.5rem; color:#aaccff; letter-spacing:0.1em; }
+    .wait-sub { font-size:0.85rem; color:rgba(150,190,255,0.5); }
+    .wait-dots { display:flex; gap:6px; }
+    .wait-dot { width:8px; height:8px; border-radius:50%; background:rgba(100,180,255,0.4); animation:dotBounce 1.4s ease-in-out infinite; }
+    .wait-dot:nth-child(2){animation-delay:.2s;} .wait-dot:nth-child(3){animation-delay:.4s;}
+    @keyframes dotBounce{ 0%,100%{transform:translateY(0);background:rgba(100,180,255,0.4);} 50%{transform:translateY(-8px);background:#00ccff;} }
+
+    /* ── Panel lateral ── */
+    .side-panel { display: flex; flex-direction: column; gap: 1rem; position: sticky; top: 1rem; }
+
+    .my-stats { padding: 1.4rem; }
+    .my-score {
+      font-family: 'Cinzel', 'Georgia', serif; font-size: 2.8rem; font-weight: 900;
+      background: linear-gradient(135deg, #00ccff, #aa55ff);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      line-height: 1; margin-bottom: 0.2rem;
+    }
+    .my-score-label { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(150,190,255,0.5); margin-bottom: 1rem; }
+    .stat-row-sm { display: flex; justify-content: space-between; padding: 0.45rem 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.82rem; }
+    .stat-row-sm:last-child { border: none; }
+    .slabel { color: rgba(150,190,255,0.5); } .sval { color: #c8deff; font-weight: 500; }
+
+    .rank-row { display: flex; align-items: center; gap: 0.7rem; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.82rem; }
+    .rank-row.me { background: rgba(0,150,255,0.08); border: 1px solid rgba(0,180,255,0.15); }
+    .rank-pos { color: rgba(150,190,255,0.4); min-width: 18px; font-size: 0.75rem; }
+    .rank-name { flex: 1; color: #c8deff; }
+    .rank-score { color: #00ccff; font-weight: 600; }
+
+    /* Pop effect */
+    .gem-popup {
+      position: fixed; pointer-events: none; z-index: 600;
+      font-size: 2rem; animation: popUp 1.1s ease-out forwards;
+    }
+    @keyframes popUp {
+      0%   { opacity:1; transform:scale(0.5) translateY(0); }
+      60%  { opacity:1; transform:scale(1.3) translateY(-35px); }
+      100% { opacity:0; transform:scale(0.9) translateY(-70px); }
+    }
+
+    /* Fila completada flash */
+    @keyframes rowFlash {
+      0%   { box-shadow: 0 0 0 0 rgba(0,220,150,0.5); }
+      50%  { box-shadow: 0 0 20px 4px rgba(0,220,150,0.35); }
+      100% { box-shadow: none; }
+    }
+    .row-complete-flash { animation: rowFlash 0.8s ease-out; }
+
+    @media (max-width: 680px) {
+      .game-layout { grid-template-columns: 1fr; }
+      .side-panel { position: static; flex-direction: row; flex-wrap: wrap; }
+      .side-panel > * { flex: 1 1 200px; }
+    }
+  </style>
+</head>
+<body>
+<div class="gem-bg"></div>
+
+<!-- Overlay espera -->
+<div class="wait-overlay" id="wait-overlay">
+  <div class="wait-icon">💎</div>
+  <div class="wait-title">Esperando al admin</div>
+  <div class="wait-sub">Partida comenzando...</div>
+  <div class="wait-dots"><div class="wait-dot"></div><div class="wait-dot"></div><div class="wait-dot"></div></div>
+</div>
+
+<!-- Modal código -->
+<div class="code-modal-bg hidden" id="code-modal-bg">
+  <div class="code-modal">
+    <div class="code-modal-gem"><img id="modal-gem-img" src="" alt="gema"></div>
+    <div class="code-modal-title">Introduce el código</div>
+    <div class="code-modal-subtitle" id="modal-gem-name">Gema</div>
+    <div class="code-inputs">
+      <input class="code-digit" id="d0" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+      <input class="code-digit" id="d1" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+      <input class="code-digit" id="d2" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+      <input class="code-digit" id="d3" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+    </div>
+    <div class="code-modal-btns">
+      <button class="btn btn-primary" onclick="submitCode()">✓ Confirmar</button>
+      <button class="btn btn-danger"  onclick="closeModal()">✕ Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Top bar -->
+<div class="top-bar">
+  <a href="index.html" class="top-bar-logo title-font">⬡ Atrapagemas</a>
+  <span id="player-name-bar" class="top-bar-info">Jugador</span>
+  <span class="top-bar-badge badge-player" id="player-badge">J1</span>
+</div>
+
+<div class="game-layout">
+
+  <!-- Grid -->
+  <div class="grid-wrapper">
+    <div class="grid-section-label" id="grid-label">Mi cuadrante — Fila activa: 1</div>
+    <div class="gem-grid" id="gem-grid"></div>
+    <div class="card" style="padding:0.9rem 1.2rem; display:flex; align-items:center; gap:0.8rem;">
+      <div style="flex:1">
+        <div style="font-size:0.68rem;letter-spacing:0.15em;text-transform:uppercase;color:rgba(150,190,255,0.45);margin-bottom:0.4rem;">Progreso total</div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      </div>
+      <div id="progress-txt" style="font-size:0.85rem;color:#00ccff;font-weight:600;">0/49</div>
+    </div>
+  </div>
+
+  <!-- Panel lateral -->
+  <div class="side-panel">
+    <div class="card my-stats">
+      <div class="my-score" id="my-score">0</div>
+      <div class="my-score-label">Puntos</div>
+      <div class="stat-row-sm"><span class="slabel">Desbloqueadas</span><span class="sval" id="s-revealed">0 / 49</span></div>
+      <div class="stat-row-sm"><span class="slabel">Fila activa</span><span class="sval" id="s-activerow">1 / 7</span></div>
+      <div class="stat-row-sm"><span class="slabel">Movimientos</span><span class="sval" id="s-moves">0</span></div>
+      <div class="stat-row-sm"><span class="slabel">Última gema</span><span class="sval" id="s-last">—</span></div>
+    </div>
+
+    <div class="card" style="padding:1.2rem;">
+      <div class="card-header" style="padding:0 0 0.7rem;border:none;margin-bottom:0.5rem;">Clasificación</div>
+      <div id="ranking-mini"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="game.js"></script>
+<script>
+  const me = GameState.getMe();
+  if (!me || me.role !== 'player') location.href = 'index.html';
+
+  const myIdx = me.idx;
+  document.getElementById('player-name-bar').textContent = me.name;
+  document.getElementById('player-badge').textContent = `J${myIdx + 1}`;
+
+  // Modal state
+  let pendingCell = null;
+  const animatedCells = new Set(); // Rastrear celdas que ya han tenido animación
+
+  // ── Construir grid ──
+  function buildGrid(player, state) {
+    const activeRow = getActiveRow(player.grid);
+    const gridEl = document.getElementById('gem-grid');
+
+    // Label de fila activa
+    document.getElementById('grid-label').textContent =
+      activeRow >= 0
+        ? `Mi cuadrante — Fila activa: ${activeRow + 1} de ${GRID_ROWS}`
+        : 'Mi cuadrante — ¡Completado! 🎉';
+
+    let html = '';
+    player.grid.forEach((row, r) => {
+      // Separador entre filas
+      if (r > 0) {
+        html += `<div class="row-divider${r === activeRow ? ' active' : ''}"></div>`;
+      }
+
+      row.forEach((cell, c) => {
+        const gem = GEM_IMAGES.find(g => g.id === cell.gemId);
+        const cellKey = `${r}-${c}`;
+        let cls = '';
+        if (cell.revealed) {
+          cls = 'revealed';
+          // Solo añadir animación la primera vez
+          if (!animatedCells.has(cellKey)) {
+            cls += ' pop-once';
+            animatedCells.add(cellKey);
+          }
+        } else if (r === activeRow) {
+          cls = 'active-row';
+        } else {
+          cls = 'locked-row';
+        }
+
+        const lockEmoji = cell.revealed ? '' : (r === activeRow ? '🔒' : '⛔');
+        const tick = cell.revealed ? '<div class="revealed-tick">✓</div>' : '';
+
+        html += `<div class="gem-cell ${cls}" id="cell-${r}-${c}"
+                   onclick="handleCellClick(${r},${c})"
+                   data-row="${r}" data-col="${c}">
+          <img src="${gem.src}" alt="">
+          <div class="lock-icon">${lockEmoji}</div>
+          ${tick}
+        </div>`;
+      });
+    });
+
+    gridEl.innerHTML = html;
+  }
+
+  function getActiveRow(grid) {
+    for (let r = 0; r < GRID_ROWS; r++) {
+      if (!grid[r].every(c => c.revealed)) return r;
+    }
+    return -1;
+  }
+
+  function handleCellClick(r, c) {
+    const state = GameState.get();
+    if (!state.started || state.ended) return;
+    const player = state.players[myIdx];
+    if (!player) return;
+    const activeRow = getActiveRow(player.grid);
+    if (r !== activeRow) return;
+    const cell = player.grid[r][c];
+    if (cell.revealed) return;
+
+    // Abrir modal
+    const gem = GEM_IMAGES.find(g => g.id === cell.gemId);
+    pendingCell = { r, c };
+    document.getElementById('modal-gem-img').src = gem.src;
+    document.getElementById('modal-gem-name').textContent = gem.name;
+    ['d0','d1','d2','d3'].forEach(id => {
+      const el = document.getElementById(id);
+      el.value = '';
+      el.classList.remove('error');
+    });
+    document.getElementById('code-modal-bg').classList.remove('hidden');
+    setTimeout(() => document.getElementById('d0').focus(), 80);
+  }
+
+  function closeModal() {
+    pendingCell = null;
+    document.getElementById('code-modal-bg').classList.add('hidden');
+  }
+
+  function submitCode() {
+    if (!pendingCell) return;
+    const code = ['d0','d1','d2','d3'].map(id => document.getElementById(id).value).join('');
+    if (code.length < 4) return;
+
+    const ok = GameState.revealCell(myIdx, pendingCell.r, pendingCell.c, code);
+
+    if (ok) {
+      // Cerrar modal y refrescar
+      closeModal();
+
+      // Pop effect
+      const cellEl = document.getElementById(`cell-${pendingCell.r}-${pendingCell.c}`);
+      if (cellEl) {
+        const rect = cellEl.getBoundingClientRect();
+        const popup = document.createElement('div');
+        popup.className = 'gem-popup';
+        popup.style.left = `${rect.left + rect.width/2 - 16}px`;
+        popup.style.top = `${rect.top}px`;
+        popup.textContent = '✨';
+        document.body.appendChild(popup);
+        setTimeout(() => popup.remove(), 1100);
+      }
+      refresh();
+    } else {
+      // Código incorrecto — efecto shake sin mensaje
+      ['d0','d1','d2','d3'].forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.add('error');
+        el.value = '';
+      });
+      setTimeout(() => {
+        ['d0','d1','d2','d3'].forEach(id => document.getElementById(id).classList.remove('error'));
+        document.getElementById('d0').focus();
+      }, 500);
+    }
+  }
+
+  // Auto-avance entre dígitos
+  ['d0','d1','d2','d3'].forEach((id, i, arr) => {
+    const el = document.getElementById(id);
+    el.addEventListener('input', () => {
+      el.value = el.value.replace(/\D/g, '').slice(-1);
+      if (el.value && i < arr.length - 1) document.getElementById(arr[i+1]).focus();
+      if (el.value && i === arr.length - 1) submitCode();
+    });
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !el.value && i > 0) document.getElementById(arr[i-1]).focus();
+      if (e.key === 'Enter') submitCode();
+      if (e.key === 'Escape') closeModal();
+    });
+  });
+
+  // Cerrar modal al hacer click fuera
+  document.getElementById('code-modal-bg').addEventListener('click', e => {
+    if (e.target === document.getElementById('code-modal-bg')) closeModal();
+  });
+
+  // ── Panel lateral ──
+  function renderSidePanel(player, state) {
+    const total = GRID_ROWS * GRID_COLS;
+    const revealed = player.grid.flat().filter(c => c.revealed).length;
+    const pct = Math.round(revealed / total * 100);
+    const activeRow = getActiveRow(player.grid);
+
+    document.getElementById('my-score').textContent = player.score;
+    document.getElementById('s-revealed').textContent = `${revealed} / ${total}`;
+    document.getElementById('s-moves').textContent = player.moves;
+    document.getElementById('s-activerow').textContent =
+      activeRow >= 0 ? `${activeRow + 1} / ${GRID_ROWS}` : '✓ Completado';
+    document.getElementById('progress-fill').style.width = `${pct}%`;
+    document.getElementById('progress-txt').textContent = `${revealed}/${total}`;
+
+    if (player.lastAction) {
+      const g = GEM_IMAGES.find(gg => gg.id === player.grid[player.lastAction.row][player.lastAction.col].gemId);
+      document.getElementById('s-last').textContent = g ? g.name : '—';
+    }
+
+    // Ranking
+    const sorted = [...state.players].sort((a,b) => b.score - a.score);
+    const icons = ['🥇','🥈','🥉','4°','5°'];
+    document.getElementById('ranking-mini').innerHTML = sorted.map((p, i) => {
+      const isMe = p.name === me.name;
+      return `<div class="rank-row${isMe ? ' me' : ''}">
+        <div class="rank-pos">${icons[i] || (i+1)+'°'}</div>
+        <div class="rank-name">${p.name}${isMe ? ' ◀' : ''}</div>
+        <div class="rank-score">${p.score}</div>
+      </div>`;
+    }).join('') || '<div style="color:rgba(150,190,255,0.3);font-size:0.8rem;">Solo tú</div>';
+  }
+
+  function refresh() {
+    const state = GameState.get();
+    const player = state.players[myIdx];
+    if (!player) return;
+
+    const overlay = document.getElementById('wait-overlay');
+    if (state.started && !state.ended) {
+      overlay.classList.add('hidden');
+    } else {
+      overlay.classList.remove('hidden');
+      if (state.ended) {
+        document.querySelector('.wait-title').textContent = 'Partida finalizada';
+        document.querySelector('.wait-sub').textContent = 'El administrador ha terminado la partida.';
+        document.querySelector('.wait-dots').style.display = 'none';
+      }
+    }
+
+    buildGrid(player, state);
+    renderSidePanel(player, state);
+  }
+
+  refresh();
+  setInterval(refresh, 1500);
+</script>
+</body>
+</html>

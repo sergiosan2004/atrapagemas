@@ -1,0 +1,160 @@
+/* ═══════════════════════════════════════════
+   ATRAPAGEMAS — Estilos globales del juego
+   ═══════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Inter:wght@300;400;500;600&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  color: #c8deff;
+  background: #050918;
+}
+
+/* ── Fondo páginas internas ── */
+.gem-bg {
+  position: fixed; inset: 0; z-index: -1;
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(80,0,160,0.25) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(0,60,160,0.3)  0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(0,20,80,0.6)   0%, transparent 70%),
+    linear-gradient(160deg, #030612 0%, #08102a 40%, #040d20 100%);
+  overflow: hidden;
+}
+.gem-bg::before {
+  content: ''; position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle at 15% 85%, rgba(255,100,180,0.06) 0%, transparent 30%),
+    radial-gradient(circle at 85% 15%, rgba(100,200,255,0.07) 0%, transparent 30%),
+    radial-gradient(circle at 50% 50%, rgba(150,80,255,0.04)  0%, transparent 40%);
+  animation: bgPulse 8s ease-in-out infinite alternate;
+}
+.gem-bg::after {
+  content: ''; position: absolute; inset: 0;
+  background-image:
+    radial-gradient(white 1px, transparent 1px),
+    radial-gradient(rgba(180,140,255,0.8) 1px, transparent 1px);
+  background-size: 60px 60px, 90px 90px;
+  background-position: 0 0, 30px 30px;
+  opacity: 0.03;
+}
+@keyframes bgPulse { from{opacity:.7} to{opacity:1} }
+
+/* ── Tipografía ── */
+.title-font { font-family: 'Cinzel','Georgia',serif; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+::-webkit-scrollbar-thumb { background: rgba(100,160,255,0.18); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(100,160,255,0.35); }
+
+/* ── Top bar ── */
+.top-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.9rem 1.5rem;
+  background: rgba(5,10,30,0.82);
+  border-bottom: 1px solid rgba(100,160,255,0.1);
+  backdrop-filter: blur(16px);
+  position: sticky; top: 0; z-index: 100;
+}
+.top-bar-logo {
+  font-family: 'Cinzel', serif; font-size: 1.1rem; font-weight: 600;
+  background: linear-gradient(90deg, #00ccff, #aa77ff);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  text-decoration: none;
+}
+.top-bar-info { font-size: 0.8rem; color: rgba(150,190,255,0.6); letter-spacing: 0.05em; }
+.top-bar-badge {
+  padding: 0.3rem 0.8rem; border-radius: 20px;
+  font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600;
+}
+.badge-admin  { background: rgba(255,200,0,0.12);  color: #ffcc00; border: 1px solid rgba(255,200,0,0.25); }
+.badge-player { background: rgba(0,200,255,0.1);   color: #00ccff; border: 1px solid rgba(0,200,255,0.25); }
+
+/* ── Tarjetas ── */
+.card {
+  background: rgba(10,16,45,0.72);
+  border: 1px solid rgba(100,160,255,0.12);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 30px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.card-header {
+  padding: 1rem 1.4rem 0.7rem;
+  border-bottom: 1px solid rgba(100,160,255,0.08);
+  font-family: 'Cinzel', serif; font-size: 0.75rem;
+  letter-spacing: 0.2em; text-transform: uppercase; color: rgba(150,190,255,0.6);
+}
+
+/* ── Botones ── */
+.btn {
+  padding: 0.7rem 1.4rem; border-radius: 8px;
+  font-size: 0.85rem; font-weight: 500; letter-spacing: 0.07em;
+  cursor: pointer; transition: all 0.2s; border: 1px solid transparent;
+  display: inline-flex; align-items: center; gap: 0.4rem;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+.btn-primary {
+  background: linear-gradient(135deg, rgba(0,140,255,0.22), rgba(80,0,200,0.22));
+  border-color: rgba(80,160,255,0.32); color: #88ccff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(0,160,255,0.32), rgba(100,0,220,0.32));
+  box-shadow: 0 0 18px rgba(0,160,255,0.12); transform: translateY(-1px);
+}
+.btn-danger {
+  background: rgba(200,30,60,0.14); border-color: rgba(200,60,80,0.28); color: #ff7788;
+}
+.btn-danger:hover:not(:disabled) {
+  background: rgba(200,30,60,0.24); box-shadow: 0 0 18px rgba(200,30,60,0.1);
+}
+.btn-success {
+  background: rgba(0,180,100,0.14); border-color: rgba(0,200,120,0.28); color: #00ee88;
+}
+.btn-success:hover:not(:disabled) {
+  background: rgba(0,180,100,0.24); box-shadow: 0 0 18px rgba(0,200,100,0.12);
+}
+
+/* ── Tick de gema revelada ── */
+.gem-cell .revealed-tick {
+  display: none;
+}
+.gem-cell.revealed .revealed-tick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  inset: 0;
+  font-size: 1.5rem;
+  color: #00ee88;
+  text-shadow: 0 0 8px #00ee88;
+  font-weight: 900;
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+.gem-cell.revealed.pop-once .revealed-tick {
+  animation: tickPop 0.3s ease-out forwards;
+}
+@keyframes tickPop {
+  0% { transform: scale(0) rotate(-90deg); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* ── Barra de progreso ── */
+.progress-bar { height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
+.progress-fill {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, #00ccff, #aa55ff);
+  transition: width 0.4s ease;
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .top-bar { padding: 0.7rem 1rem; }
+}

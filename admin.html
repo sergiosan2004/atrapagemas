@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="game.css">
+  <title>Atrapagemas — Panel Admin</title>
+  <style>
+    body { min-height: 100vh; }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 1.2rem;
+      padding: 1.2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+      min-height: calc(100vh - 57px);
+      align-items: start;
+    }
+
+    .stats-row {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+    }
+
+    .stat-card { padding: 1.2rem 1.4rem; }
+    .stat-value {
+      font-family: 'Cinzel', 'Georgia', serif; font-size: 2rem; font-weight: 900;
+      background: linear-gradient(135deg, #00ccff, #aa55ff);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      line-height: 1; margin-bottom: 0.3rem;
+    }
+    .stat-label { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(150,190,255,0.55); }
+
+    .players-area { display: flex; flex-direction: column; gap: 1rem; }
+
+    .player-card-admin { padding: 1.2rem; }
+
+    .player-header { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.9rem; }
+    .player-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; font-weight: 700; font-family: 'Cinzel', serif; flex-shrink: 0;
+    }
+    .player-name-admin { font-weight: 600; font-size: 0.95rem; color: #d0eeff; }
+    .player-meta { font-size: 0.72rem; color: rgba(150,190,255,0.5); margin-top: 0.1rem; }
+    .player-score-badge { margin-left: auto; font-family: 'Cinzel', serif; font-size: 1.2rem; font-weight: 700; }
+
+    /* Mini cuadrícula con imágenes reales */
+    .mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+    .mini-cell {
+      aspect-ratio: 1; border-radius: 3px;
+      background: rgba(20,40,80,0.5); border: 1px solid rgba(60,100,180,0.15);
+      overflow: hidden; position: relative;
+    }
+    .mini-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .mini-cell.locked img { filter: grayscale(100%) brightness(0.2); }
+    .mini-cell.unlocked { border-color: rgba(0,220,150,0.4); box-shadow: 0 0 4px rgba(0,220,150,0.2); }
+
+    /* Indicador de fila activa */
+    .row-indicator {
+      position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+      border: 1px solid rgba(0,200,255,0.5);
+      border-radius: 3px; pointer-events: none;
+    }
+
+    .progress-row { display: flex; align-items: center; gap: 0.7rem; margin-top: 0.8rem; }
+    .progress-pct { font-size: 0.75rem; color: rgba(150,190,255,0.6); min-width: 36px; text-align: right; }
+
+    .side-panel { display: flex; flex-direction: column; gap: 1rem; }
+
+    .controls-card { padding: 1.2rem; }
+    .controls-title {
+      font-family: 'Cinzel', serif; font-size: 0.72rem; letter-spacing: 0.2em;
+      text-transform: uppercase; color: rgba(150,190,255,0.55); margin-bottom: 1rem;
+    }
+    .controls-btns { display: flex; flex-direction: column; gap: 0.6rem; }
+    .controls-btns .btn { justify-content: center; }
+
+    /* Estado de la partida */
+    .game-status-badge {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.78rem;
+      font-weight: 600; letter-spacing: 0.08em; margin-bottom: 1rem; width: 100%;
+      justify-content: center;
+    }
+    .status-idle    { background: rgba(100,150,255,0.1);  color: #88aaff;  border: 1px solid rgba(100,150,255,0.25); }
+    .status-running { background: rgba(0,200,100,0.12);   color: #00ee88;  border: 1px solid rgba(0,200,100,0.3); }
+    .status-ended   { background: rgba(200,80,80,0.12);   color: #ff8888;  border: 1px solid rgba(200,80,80,0.3); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; animation: blink 1.2s ease-in-out infinite; }
+    .status-running .status-dot { background: #00ee88; }
+    .status-idle    .status-dot { background: #88aaff; animation: none; }
+    .status-ended   .status-dot { background: #ff8888; animation: none; }
+    @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+    .leaderboard-row {
+      display: flex; align-items: center; gap: 0.8rem; padding: 0.55rem 0.8rem;
+      border-radius: 8px; background: rgba(255,255,255,0.02); margin-bottom: 0.4rem;
+    }
+    .lb-rank { font-size: 0.9rem; font-weight: 700; min-width: 22px; text-align: center; color: rgba(150,190,255,0.4); }
+    .lb-rank.gold { color: #ffcc00; } .lb-rank.silver { color: #aabbcc; } .lb-rank.bronze { color: #cc8844; }
+    .lb-name { flex: 1; font-size: 0.85rem; color: #c8deff; }
+    .lb-score { font-size: 0.85rem; font-weight: 600; color: #00ccff; }
+
+    .log-card { display: flex; flex-direction: column; }
+    .log-inner { overflow-y: auto; padding: 0.8rem 1rem; max-height: 300px; }
+    .log-entry { display: flex; gap: 0.6rem; padding: 0.45rem 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .log-time { font-size: 0.65rem; color: rgba(150,190,255,0.35); white-space: nowrap; min-width: 50px; }
+    .log-msg  { font-size: 0.78rem; color: rgba(200,225,255,0.75); line-height: 1.4; }
+
+    .p-color-0 { background: rgba(255,80,120,0.15);  color: #ff7090; border-color: rgba(255,80,120,0.3); }
+    .p-color-1 { background: rgba(80,200,120,0.15);  color: #50cc80; border-color: rgba(80,200,120,0.3); }
+    .p-color-2 { background: rgba(80,160,255,0.15);  color: #55aaff; border-color: rgba(80,160,255,0.3); }
+    .p-color-3 { background: rgba(255,180,0,0.15);   color: #ffbb00; border-color: rgba(255,180,0,0.3); }
+    .p-color-4 { background: rgba(180,80,255,0.15);  color: #bb55ff; border-color: rgba(180,80,255,0.3); }
+    .p-text-0 { color: #ff7090; } .p-text-1 { color: #50cc80; } .p-text-2 { color: #55aaff; }
+    .p-text-3 { color: #ffbb00; } .p-text-4 { color: #bb55ff; }
+    .PLAYER_COLORS_ARR { display: none; }
+
+    @media (max-width: 900px) {
+      .main-layout { grid-template-columns: 1fr; }
+      .side-panel { flex-direction: row; flex-wrap: wrap; }
+      .side-panel > * { flex: 1 1 260px; }
+    }
+  </style>
+</head>
+<body>
+<div class="gem-bg"></div>
+
+<div class="top-bar">
+  <a href="index.html" class="top-bar-logo title-font">⬡ Atrapagemas</a>
+  <span class="top-bar-info">Panel de Administración</span>
+  <span class="top-bar-badge badge-admin">★ Admin</span>
+</div>
+
+<div class="main-layout">
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="card stat-card"><div class="stat-value" id="stat-players">0/5</div><div class="stat-label">Jugadores</div></div>
+    <div class="card stat-card"><div class="stat-value" id="stat-revealed">0%</div><div class="stat-label">Gemas reveladas</div></div>
+    <div class="card stat-card"><div class="stat-value" id="stat-moves">0</div><div class="stat-label">Movimientos</div></div>
+    <div class="card stat-card"><div class="stat-value" id="stat-leader">—</div><div class="stat-label">Líder</div></div>
+    <div class="card stat-card"><div class="stat-value" id="stat-time">—</div><div class="stat-label">Tiempo</div></div>
+  </div>
+
+  <!-- Jugadores -->
+  <div class="players-area" id="players-area">
+    <div class="card" style="padding:2rem; text-align:center; color:rgba(150,190,255,0.4);">Esperando jugadores…</div>
+  </div>
+
+  <!-- Panel lateral -->
+  <div class="side-panel">
+
+    <div class="card controls-card">
+      <div class="controls-title">Control de partida</div>
+
+      <!-- Badge de estado -->
+      <div id="status-badge" class="game-status-badge status-idle">
+        <div class="status-dot"></div> <span id="status-text">Sin iniciar</span>
+      </div>
+
+      <div class="controls-btns">
+        <button class="btn btn-success"  id="btn-start"  onclick="adminStart()">▶ Iniciar partida</button>
+        <button class="btn btn-primary"  onclick="location.href='leaderboard.html'">🏆 Clasificación</button>
+        <button class="btn btn-danger"   id="btn-end"    onclick="adminEnd()">■ Terminar y borrar jugadores</button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:1.2rem;">
+      <div class="card-header" style="padding:0 0 0.8rem; border:none; margin-bottom:0.6rem;">Clasificación rápida</div>
+      <div id="leaderboard-mini"></div>
+    </div>
+
+    <div class="card log-card">
+      <div class="card-header">Historial de actividad</div>
+      <div class="log-inner" id="log-inner">
+        <div style="color:rgba(150,190,255,0.3);font-size:0.8rem;">Sin actividad aún…</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="game.js"></script>
+<script>
+  const me = GameState.getMe();
+  if (!me || me.role !== 'admin') location.href = 'index.html';
+
+  const PLAYER_COLORS = ['#ff7090','#50cc80','#55aaff','#ffbb00','#bb55ff'];
+
+  function revealedCount(grid) { return grid.flat().filter(c => c.revealed).length; }
+
+  function getActiveRow(grid) {
+    for (let r = 0; r < GRID_ROWS; r++) {
+      if (!grid[r].every(c => c.revealed)) return r;
+    }
+    return -1; // todo completado
+  }
+
+  function renderPlayers(state) {
+    const area = document.getElementById('players-area');
+    if (!state.players.length) {
+      area.innerHTML = `<div class="card" style="padding:2rem;text-align:center;color:rgba(150,190,255,0.4);">Esperando jugadores…</div>`;
+      return;
+    }
+
+    area.innerHTML = state.players.map((p, i) => {
+      const total = GRID_ROWS * GRID_COLS;
+      const revealed = revealedCount(p.grid);
+      const pct = Math.round(revealed / total * 100);
+      const color = PLAYER_COLORS[i % PLAYER_COLORS.length];
+      const activeRow = getActiveRow(p.grid);
+
+      // Mini cuadrícula con imágenes reales
+      const miniCells = p.grid.map((row, r) =>
+        row.map((cell, c) => {
+          const gem = GEM_IMAGES.find(g => g.id === cell.gemId);
+          const isActive = (r === activeRow);
+          const cls = cell.revealed ? 'unlocked' : (isActive ? 'active-row' : 'locked');
+          return `<div class="mini-cell ${cls}" title="${cell.revealed ? gem.name : (isActive ? '🔓 '+gem.name : '🔒')}">
+            <img src="${gem.src}" alt="${gem.name}">
+            ${isActive && !cell.revealed ? '<div class="row-indicator"></div>' : ''}
+          </div>`;
+        }).join('')
+      ).join('');
+
+      const lastAct = p.lastAction
+        ? `Última: fila ${p.lastAction.row+1}, col ${p.lastAction.col+1} · ${timeAgo(p.lastAction.ts)}`
+        : 'Sin movimientos aún';
+
+      return `
+        <div class="card player-card-admin">
+          <div class="player-header">
+            <div class="player-avatar p-color-${i}" style="border:1.5px solid;">${p.name[0].toUpperCase()}</div>
+            <div>
+              <div class="player-name-admin">${p.name}</div>
+              <div class="player-meta">${lastAct}</div>
+            </div>
+            <div class="player-score-badge p-text-${i}">${p.score} pts</div>
+          </div>
+          <div class="mini-grid">${miniCells}</div>
+          <div class="progress-row">
+            <div class="progress-bar" style="flex:1">
+              <div class="progress-fill" style="width:${pct}%;background:linear-gradient(90deg,${color}88,${color});"></div>
+            </div>
+            <div class="progress-pct">${pct}%</div>
+          </div>
+          <div style="font-size:0.72rem;color:rgba(150,190,255,0.4);margin-top:0.5rem;">
+            ${revealed}/${total} gemas desbloqueadas · ${p.moves} movimientos · Fila activa: ${activeRow >= 0 ? activeRow+1 : '✓ Completado'}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderStats(state) {
+    const total = GRID_ROWS * GRID_COLS;
+    const totalPossible = state.players.length * total;
+    const totalRevealed = state.players.reduce((s, p) => s + revealedCount(p.grid), 0);
+    const totalMoves    = state.players.reduce((s, p) => s + p.moves, 0);
+    const pct = totalPossible ? Math.round(totalRevealed / totalPossible * 100) : 0;
+
+    document.getElementById('stat-players').textContent = `${state.players.length}/5`;
+    document.getElementById('stat-revealed').textContent = `${pct}%`;
+    document.getElementById('stat-moves').textContent = totalMoves;
+
+    const sorted = [...state.players].sort((a,b) => b.score - a.score);
+    document.getElementById('stat-leader').textContent = sorted[0]?.name || '—';
+
+    if (state.startedAt && state.started) {
+      const secs = Math.floor((Date.now() - state.startedAt) / 1000);
+      const m = Math.floor(secs / 60), s = secs % 60;
+      document.getElementById('stat-time').textContent = `${m}:${String(s).padStart(2,'0')}`;
+    }
+
+    // Estado badge
+    const badge = document.getElementById('status-badge');
+    const txt   = document.getElementById('status-text');
+    badge.className = 'game-status-badge';
+    if (state.ended) {
+      badge.classList.add('status-ended'); txt.textContent = 'Partida finalizada';
+    } else if (state.started) {
+      badge.classList.add('status-running'); txt.textContent = 'En curso';
+    } else {
+      badge.classList.add('status-idle'); txt.textContent = 'Sin iniciar';
+    }
+
+    document.getElementById('btn-start').disabled = state.started && !state.ended;
+    document.getElementById('btn-end').disabled   = !state.started || state.ended;
+
+    // Leaderboard mini
+    const rankIcons = ['🥇','🥈','🥉','4°','5°'];
+    const rankClasses = ['gold','silver','bronze','',''];
+    const lb = document.getElementById('leaderboard-mini');
+    lb.innerHTML = sorted.length
+      ? sorted.map((p, i) => `
+          <div class="leaderboard-row">
+            <div class="lb-rank ${rankClasses[i]}">${rankIcons[i]}</div>
+            <div class="lb-name">${p.name}</div>
+            <div class="lb-score">${p.score}</div>
+          </div>`).join('')
+      : `<div style="color:rgba(150,190,255,0.3);font-size:0.8rem;">Sin jugadores aún</div>`;
+  }
+
+  function renderLog(state) {
+    const el = document.getElementById('log-inner');
+    el.innerHTML = state.log.length
+      ? state.log.map(e => `
+          <div class="log-entry">
+            <div class="log-time">${timeAgo(e.ts)}</div>
+            <div class="log-msg">${e.msg}</div>
+          </div>`).join('')
+      : `<div style="color:rgba(150,190,255,0.3);font-size:0.8rem;">Sin actividad aún…</div>`;
+  }
+
+  function refresh() {
+    const state = GameState.get();
+    renderPlayers(state);
+    renderStats(state);
+    renderLog(state);
+  }
+
+  function adminStart() {
+    const state = GameState.get();
+    if (state.started) return;
+    GameState.startGame();
+    refresh();
+  }
+
+  function adminEnd() {
+    if (!confirm('¿Terminar la partida?\n\nSe borrarán todos los jugadores y quedará lista para una nueva ronda.')) return;
+    GameState.endGame();
+    location.href = 'leaderboard.html';
+  }
+
+  refresh();
+  setInterval(refresh, 1500);
+</script>
+</body>
+</html>

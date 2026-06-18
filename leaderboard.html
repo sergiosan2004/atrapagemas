@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="game.css">
+  <title>Atrapagemas — Clasificación</title>
+  <style>
+    body { min-height: 100vh; }
+
+    .lb-page {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 2rem 1.2rem;
+    }
+
+    .lb-hero {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .lb-hero-icon {
+      font-size: 4rem;
+      display: block;
+      margin-bottom: 0.8rem;
+      animation: trophySpin 4s ease-in-out infinite;
+    }
+
+    @keyframes trophySpin {
+      0%, 100% { transform: scale(1) rotate(-3deg); }
+      50% { transform: scale(1.08) rotate(3deg); }
+    }
+
+    .lb-hero-title {
+      font-family: 'Cinzel', 'Georgia', serif;
+      font-size: 2rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, #ffcc00, #ff8800, #ffcc00);
+      background-size: 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: goldShimmer 3s ease-in-out infinite;
+      margin-bottom: 0.4rem;
+    }
+
+    @keyframes goldShimmer {
+      0%, 100% { background-position: 0%; }
+      50% { background-position: 100%; }
+    }
+
+    .lb-hero-sub {
+      color: rgba(150, 190, 255, 0.5);
+      font-size: 0.85rem;
+      letter-spacing: 0.1em;
+    }
+
+    /* Podio */
+    .podium {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+      height: 180px;
+    }
+
+    .podium-slot {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .podium-avatar {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cinzel', serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      border: 2px solid;
+    }
+
+    .podium-name {
+      font-size: 0.8rem;
+      color: #c8deff;
+      font-weight: 500;
+    }
+
+    .podium-score {
+      font-size: 0.75rem;
+      color: rgba(150, 190, 255, 0.6);
+    }
+
+    .podium-block {
+      width: 90px;
+      border-radius: 6px 6px 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cinzel', serif;
+      font-size: 1.8rem;
+    }
+
+    .p1 .podium-block { height: 120px; background: linear-gradient(to bottom, rgba(255,200,0,0.25), rgba(255,160,0,0.1)); border: 1px solid rgba(255,200,0,0.3); }
+    .p2 .podium-block { height: 85px; background: linear-gradient(to bottom, rgba(180,190,200,0.2), rgba(150,160,175,0.08)); border: 1px solid rgba(180,190,200,0.25); }
+    .p3 .podium-block { height: 60px; background: linear-gradient(to bottom, rgba(180,110,50,0.2), rgba(150,90,40,0.08)); border: 1px solid rgba(180,110,50,0.25); }
+
+    .p1 .podium-avatar { background: rgba(255,200,0,0.15); border-color: #ffcc00; color: #ffcc00; }
+    .p2 .podium-avatar { background: rgba(180,190,200,0.1); border-color: #aabbcc; color: #aabbcc; }
+    .p3 .podium-avatar { background: rgba(180,110,50,0.1); border-color: #cc8844; color: #cc8844; }
+
+    /* Tabla completa */
+    .lb-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .lb-table thead th {
+      padding: 0.6rem 1rem;
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(150, 190, 255, 0.45);
+      text-align: left;
+      border-bottom: 1px solid rgba(100, 160, 255, 0.1);
+    }
+
+    .lb-table tbody tr {
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      transition: background 0.15s;
+    }
+
+    .lb-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+    .lb-table tbody tr.is-me { background: rgba(0, 150, 255, 0.07); }
+
+    .lb-table tbody td {
+      padding: 0.85rem 1rem;
+      font-size: 0.88rem;
+      color: #c8deff;
+    }
+
+    .rank-medal { font-size: 1.2rem; }
+
+    .player-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+    }
+
+    .name-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .score-cell {
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+      color: #00ccff;
+    }
+
+    .pct-cell { color: rgba(150, 190, 255, 0.6); }
+
+    .bottom-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 2.5rem;
+      flex-wrap: wrap;
+    }
+
+    .empty-msg {
+      text-align: center;
+      padding: 3rem;
+      color: rgba(150, 190, 255, 0.4);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+<div class="gem-bg"></div>
+
+<div class="top-bar">
+  <a href="index.html" class="top-bar-logo title-font">⬡ Atrapagemas</a>
+  <span class="top-bar-info">Clasificación Final</span>
+  <span class="top-bar-badge badge-player">🏆</span>
+</div>
+
+<div class="lb-page">
+  <div class="lb-hero">
+    <span class="lb-hero-icon">🏆</span>
+    <div class="lb-hero-title">Clasificación</div>
+    <div class="lb-hero-sub" id="lb-sub">Partida en curso</div>
+  </div>
+
+  <div id="podium-container"></div>
+
+  <div class="card" id="full-table-card" style="overflow:hidden;">
+    <div class="card-header">Tabla completa</div>
+    <div id="full-table-inner" style="padding: 0 0.5rem 1rem;"></div>
+  </div>
+
+  <div class="bottom-actions">
+    <a href="index.html" class="btn btn-primary">← Volver al lobby</a>
+    <a href="admin.html" class="btn btn-primary" id="admin-link" style="display:none;">★ Panel Admin</a>
+  </div>
+</div>
+
+<script src="game.js"></script>
+<script>
+  const me = GameState.getMe();
+  if (me?.role === 'admin') document.getElementById('admin-link').style.display = 'inline-flex';
+
+  const COLORS = ['#ff7090','#50cc80','#55aaff','#ffbb00','#bb55ff'];
+  const MEDALS = ['🥇','🥈','🥉','',''];
+  const RANK_LABELS = ['gold','silver','bronze','',''];
+
+  function revCount(grid) { return grid.flat().filter(c => c.revealed).length; }
+
+  function render() {
+    const state = GameState.get();
+    const sorted = [...state.players].sort((a, b) => b.score - a.score);
+
+    // Sub heading
+    document.getElementById('lb-sub').textContent = state.started
+      ? (state.log[0]?.msg.includes('finalizado') ? 'Resultado final' : 'Partida en curso')
+      : 'Sala de espera';
+
+    // Podium
+    const podiumEl = document.getElementById('podium-container');
+    if (sorted.length >= 1) {
+      const p1 = sorted[0], p2 = sorted[1], p3 = sorted[2];
+      // Order: 2nd, 1st, 3rd visually
+      const order = [p2, p1, p3].filter(Boolean);
+      const classes = p2 ? ['p2','p1','p3'] : ['p1'];
+      const iconOrder = p2 ? ['🥈','🥇','🥉'] : ['🥇'];
+      const medals = p2 ? [2,1,3] : [1];
+
+      podiumEl.innerHTML = `<div class="podium">
+        ${order.map((p, i) => {
+          const cls = classes[i];
+          const icon = iconOrder[i];
+          const total = GRID_ROWS * GRID_COLS;
+          const pct = Math.round(revCount(p.grid) / total * 100);
+          return `<div class="podium-slot ${cls}">
+            <div class="podium-avatar">${p.name[0].toUpperCase()}</div>
+            <div class="podium-name">${p.name}</div>
+            <div class="podium-score">${p.score} pts</div>
+            <div class="podium-block">${icon}</div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    } else {
+      podiumEl.innerHTML = '';
+    }
+
+    // Full table
+    const tableInner = document.getElementById('full-table-inner');
+    if (!sorted.length) {
+      tableInner.innerHTML = `<div class="empty-msg">No hay jugadores aún. ¡Únete desde el lobby!</div>`;
+      return;
+    }
+
+    const total = GRID_ROWS * GRID_COLS;
+    const rows = sorted.map((p, i) => {
+      const rev = revCount(p.grid);
+      const pct = Math.round(rev / total * 100);
+      const isMe = me && p.name === me.name;
+      const color = COLORS[state.players.findIndex(pl => pl.name === p.name) % COLORS.length];
+
+      return `<tr class="${isMe ? 'is-me' : ''}">
+        <td><span class="rank-medal">${MEDALS[i] || (i+1)+'.'}</span></td>
+        <td>
+          <div class="player-name-cell">
+            <div class="name-dot" style="background:${color}; box-shadow: 0 0 6px ${color};"></div>
+            ${p.name}${isMe ? ' <span style="font-size:0.7rem;color:#00ccff;">(tú)</span>' : ''}
+          </div>
+        </td>
+        <td class="score-cell">${p.score}</td>
+        <td class="pct-cell">${pct}%</td>
+        <td>${p.moves}</td>
+        <td>${rev}/${total}</td>
+      </tr>`;
+    }).join('');
+
+    tableInner.innerHTML = `
+      <table class="lb-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Jugador</th>
+            <th>Puntos</th>
+            <th>Progreso</th>
+            <th>Movimientos</th>
+            <th>Gemas</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  render();
+  setInterval(render, 2000);
+</script>
+</body>
+</html>

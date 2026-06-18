@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="atrapagemas.css">
+  <link rel="stylesheet" href="game.css">
+  <title>Atrapagemas — Lobby</title>
+  <style>
+    body { margin: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+
+    .lobby-container {
+      position: relative; z-index: 10;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 100vh; padding: 2rem;
+    }
+
+    .logo-title {
+      font-family: 'Georgia', serif;
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase;
+      background: linear-gradient(135deg, #00ffcc, #00aaff, #aa00ff, #ffaa00);
+      background-size: 300% 300%;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      animation: gemShimmer 4s ease-in-out infinite; margin-bottom: 0.3rem;
+    }
+    @keyframes gemShimmer {
+      0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; }
+    }
+
+    .logo-subtitle {
+      color: rgba(180,210,255,0.7); font-size: 0.95rem;
+      letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 3rem;
+    }
+
+    .lobby-card {
+      background: rgba(10,15,40,0.75); border: 1px solid rgba(100,180,255,0.2);
+      border-radius: 16px; padding: 2.5rem 3rem; width: 100%; max-width: 460px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 0 60px rgba(0,150,255,0.1), inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+
+    .role-selector { display: flex; gap: 1rem; margin-bottom: 2rem; }
+
+    .role-btn {
+      flex: 1; padding: 0.9rem;
+      border: 1px solid rgba(100,180,255,0.25); border-radius: 10px;
+      background: rgba(255,255,255,0.03); color: rgba(180,210,255,0.6);
+      font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase;
+      cursor: pointer; transition: all 0.25s;
+    }
+    .role-btn:hover, .role-btn.active {
+      background: rgba(0,150,255,0.15); border-color: rgba(0,200,255,0.5);
+      color: #00eeff; box-shadow: 0 0 20px rgba(0,200,255,0.1);
+    }
+
+    .form-label {
+      display: block; color: rgba(150,190,255,0.7); font-size: 0.75rem;
+      letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 0.5rem;
+    }
+    .form-input {
+      width: 100%; padding: 0.85rem 1rem;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(100,180,255,0.2);
+      border-radius: 8px; color: #d0eeff; font-size: 1rem;
+      outline: none; box-sizing: border-box; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-input:focus { border-color: rgba(0,200,255,0.5); box-shadow: 0 0 15px rgba(0,200,255,0.08); }
+    .form-input::placeholder { color: rgba(120,160,210,0.4); }
+    .form-group { margin-bottom: 1.5rem; }
+
+    .enter-btn {
+      width: 100%; padding: 1rem;
+      background: linear-gradient(135deg, rgba(0,150,255,0.3), rgba(0,80,200,0.4));
+      border: 1px solid rgba(0,200,255,0.4); border-radius: 10px;
+      color: #00eeff; font-size: 1rem; font-weight: 600;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      cursor: pointer; transition: all 0.25s; margin-top: 0.5rem;
+    }
+    .enter-btn:hover {
+      background: linear-gradient(135deg, rgba(0,180,255,0.4), rgba(0,100,220,0.5));
+      box-shadow: 0 0 30px rgba(0,200,255,0.2); transform: translateY(-1px);
+    }
+
+    .lobby-status {
+      margin-top: 2rem; padding: 1.2rem;
+      background: rgba(0,20,60,0.5); border-radius: 10px;
+      border: 1px solid rgba(60,120,200,0.15);
+    }
+    .status-title {
+      color: rgba(150,190,255,0.6); font-size: 0.7rem;
+      letter-spacing: 0.3em; text-transform: uppercase; margin-bottom: 0.8rem;
+    }
+    .player-slots { display: flex; flex-direction: column; gap: 0.5rem; }
+    .player-slot {
+      display: flex; align-items: center; gap: 0.8rem;
+      padding: 0.5rem 0.7rem; border-radius: 6px; background: rgba(255,255,255,0.02);
+    }
+    .slot-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: rgba(100,140,200,0.3); border: 1px solid rgba(100,140,200,0.4); flex-shrink: 0;
+    }
+    .slot-dot.filled { background: #00ffaa; box-shadow: 0 0 8px #00ffaa; border-color: #00ffaa; }
+    .slot-dot.admin  { background: #ffcc00; box-shadow: 0 0 8px #ffcc00; border-color: #ffcc00; }
+    .slot-name { color: rgba(180,210,255,0.7); font-size: 0.85rem; }
+    .slot-badge {
+      margin-left: auto; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 0.15rem 0.5rem; border-radius: 4px;
+      background: rgba(255,200,0,0.1); color: #ffcc00; border: 1px solid rgba(255,200,0,0.2);
+    }
+
+    .error-msg { color: #ff6a7d; font-size: 0.8rem; margin-top: 0.5rem; display: none; }
+    #player-name-group { display: none; }
+    #admin-code-group  { display: none; }
+  </style>
+</head>
+<body>
+<div class="night-sky">
+  <span class="stars"></span>
+  <span class="aurora-layer"></span>
+  <svg style="display:none;">
+    <filter id="night-sky-filter">
+      <feTurbulence result="noise" numOctaves="3" baseFrequency="0.015" type="fractalNoise"/>
+      <feColorMatrix result="blueFog" values="0 0 0 0 0 0 0 0 0 0 0 0 0.8 0 0.2 0 0 0 1 0" type="matrix" in="noise"/>
+      <feBlend mode="lighten" in2="blueFog" in="SourceGraphic"/>
+    </filter>
+  </svg>
+</div>
+
+<div class="lobby-container">
+  <div class="logo-title">Atrapagemas</div>
+  <div class="logo-subtitle">Sala de Espera</div>
+
+  <div class="lobby-card">
+    <div class="role-selector">
+      <button class="role-btn" id="btn-player" onclick="selectRole('player')">⬡ Jugador</button>
+      <button class="role-btn" id="btn-admin"  onclick="selectRole('admin')">★ Admin</button>
+    </div>
+
+    <!-- Solo visible para jugadores -->
+    <div class="form-group" id="player-name-group">
+      <label class="form-label">Tu nombre</label>
+      <input class="form-input" id="player-name" type="text" placeholder="Ej: Capitán Rubí" maxlength="20">
+    </div>
+
+    <!-- Contraseña — siempre visible según rol -->
+    <div class="form-group" id="admin-code-group">
+      <label class="form-label" id="code-label">Código de administrador</label>
+      <input class="form-input" id="admin-code" type="password" placeholder="••••••••">
+      <div class="error-msg" id="code-error">Código incorrecto</div>
+    </div>
+
+    <button class="enter-btn" onclick="enterGame()">Entrar al juego →</button>
+
+    <div class="lobby-status">
+      <div class="status-title">Jugadores conectados</div>
+      <div class="player-slots" id="player-slots"></div>
+    </div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+<script>
+  let selectedRole = 'player';
+
+  function selectRole(role) {
+    selectedRole = role;
+    document.getElementById('btn-player').classList.toggle('active', role === 'player');
+    document.getElementById('btn-admin').classList.toggle('active', role === 'admin');
+    // Jugador: nombre + sin contraseña. Admin: solo contraseña
+    document.getElementById('player-name-group').style.display = role === 'player' ? 'block' : 'none';
+    document.getElementById('admin-code-group').style.display  = 'block';
+    document.getElementById('code-label').textContent =
+      role === 'admin' ? 'Código de administrador' : 'Código de acceso (si aplica)';
+    if (role === 'player') document.getElementById('admin-code-group').style.display = 'none';
+  }
+
+  function enterGame() {
+    document.getElementById('code-error').style.display = 'none';
+
+    if (selectedRole === 'admin') {
+      const code = document.getElementById('admin-code').value.trim();
+      if (code !== ADMIN_CODE) {
+        document.getElementById('admin-code-group').style.display = 'block';
+        document.getElementById('code-error').style.display = 'block';
+        return;
+      }
+      GameState.joinAsAdmin();
+      window.location.href = 'admin.html';
+
+    } else {
+      const name = document.getElementById('player-name').value.trim();
+      if (!name) { document.getElementById('player-name').focus(); return; }
+      const slot = GameState.joinAsPlayer(name);
+      if (slot === null) { alert('La partida está llena (máximo 5 jugadores).'); return; }
+      window.location.href = 'player.html';
+    }
+  }
+
+  function renderSlots() {
+    const state = GameState.get();
+    const container = document.getElementById('player-slots');
+    const allSlots = [
+      { label: 'Administrador', isAdmin: true, filled: !!state.admin },
+      ...Array.from({ length: 5 }, (_, i) => ({
+        label: state.players[i] ? state.players[i].name : `Jugador ${i + 1}`,
+        isAdmin: false, filled: !!state.players[i]
+      }))
+    ];
+    container.innerHTML = allSlots.map(s => `
+      <div class="player-slot">
+        <div class="slot-dot ${s.filled ? (s.isAdmin ? 'admin' : 'filled') : ''}"></div>
+        <span class="slot-name">${s.label}</span>
+        ${s.isAdmin && s.filled ? '<span class="slot-badge">Admin</span>' : ''}
+      </div>`).join('');
+  }
+
+  // Enter con teclado
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') enterGame(); });
+
+  selectRole('player');
+  renderSlots();
+  setInterval(renderSlots, 1500);
+</script>
+</body>
+</html>
