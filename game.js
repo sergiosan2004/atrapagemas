@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════
-//   ATRAPAGEMAS — Lógica central
+//   ATRAPAGEMAS — Lógica central (Conectado a Firebase RTDB)
 // ═══════════════════════════════════════════════
 
 const ADMIN_CODE = 'gemas2025';
@@ -54,7 +54,6 @@ function generateGrid() {
     let rowIds = [];
     const usedIds = new Set();
 
-    // Garantizar al menos 1 de cada tipo
     for (const t of GEM_TYPES) {
       const candidates = GEM_IMAGES.filter(g => g.type === t && !usedIds.has(g.id));
       const pick = candidates[Math.floor(Math.random() * candidates.length)];
@@ -62,7 +61,6 @@ function generateGrid() {
       usedIds.add(pick.id);
     }
 
-    // Completar hasta 7 sin repetir gemId en la fila
     while (rowIds.length < GRID_COLS) {
       const remaining = GEM_IMAGES.filter(g => !usedIds.has(g.id));
       if (!remaining.length) break;
@@ -71,14 +69,12 @@ function generateGrid() {
       usedIds.add(pick.id);
     }
 
-    // Mezclar el orden de la fila y validar que no haya 3 del mismo tipo consecutivos
     let attempts = 0;
     let isValid = false;
     while (!isValid && attempts < 100) {
       rowIds = rowIds.sort(() => Math.random() - 0.5);
       isValid = true;
       
-      // Verificar que no haya 3 del mismo tipo consecutivos
       for (let i = 0; i < rowIds.length - 2; i++) {
         const type1 = GEM_IMAGES.find(g => g.id === rowIds[i]).type;
         const type2 = GEM_IMAGES.find(g => g.id === rowIds[i + 1]).type;
@@ -102,7 +98,6 @@ function generateGrid() {
   return grid;
 }
 
-// Utilidad: tiempo relativo
 function timeAgo(ts) {
   if (!ts) return '—';
   const diff = Math.floor((Date.now() - ts) / 1000);
@@ -111,26 +106,68 @@ function timeAgo(ts) {
   return `hace ${Math.floor(diff / 3600)}h`;
 }
 
-// ── Estado global (localStorage) ──
-const GameState = {
-  _key: 'atrapagemas_state',
 
+// 🌐 ── CONEXIÓN DIRECTA CON TU ENLACE DE FIREBASE ──
+const FIREBASE_URL = 'https://atrapagemas-ea12d-default-rtdb.firebaseio.com/partida.json';
+let cachedState = { admin: null, players: [], started: false, ended: false, log: [], startedAt: null };
+
+// Descarga el estado actual de la nube
+async function fetchFromFirebase() {
+  try {
+    const response = await fetch(FIREBASE_URL);
+    const data = await response.json();
+    if (data) {
+      cachedState = data;
+      if (!cachedState.players) cachedState.players = [];
+      if (!cachedState.log) cachedState.log = [];
+    }
+  } catch (error) {
+    console.error("Error al leer de Firebase:", error);
+  }
+}
+
+// Sube los cambios a la nube instantáneamente
+async function saveToFirebase(state) {
+  try {
+    await fetch(FIREBASE_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state)
+    });
+  } catch (error) {
+    console.error("Error al guardar en Firebase:", error);
+  }
+}
+
+// Bucle que sincroniza y actualiza los gráficos de la pantalla cada 1 segundo
+setInterval(async () => {
+  await fetchFromFirebase();
+  if (typeof refresh === 'function') {
+    refresh();
+  }
+}, 1000);
+
+// Descarga inicial inmediata
+fetchFromFirebase();
+
+
+// ── Estado global controlado por Firebase ──
+const GameState = {
   _default() {
     return { admin: null, players: [], started: false, ended: false, log: [], startedAt: null };
   },
 
   get() {
-    try {
-      const s = localStorage.getItem(GameState._key);
-      return s ? JSON.parse(s) : GameState._default();
-    } catch { return GameState._default(); }
+    return cachedState || GameState._default();
   },
 
   save(state) {
-    localStorage.setItem(GameState._key, JSON.stringify(state));
+    cachedState = state;
+    saveToFirebase(state);
   },
 
   addLog(state, msg) {
+    if (!state.log) state.log = [];
     state.log.unshift({ msg, ts: Date.now() });
     if (state.log.length > 150) state.log.length = 150;
   },
@@ -145,6 +182,7 @@ const GameState = {
 
   joinAsPlayer(name) {
     const state = GameState.get();
+    if (!state.players) state.players = [];
     const existingIdx = state.players.findIndex(p => p.name === name);
     if (existingIdx !== -1) {
       localStorage.setItem('atrapagemas_me', JSON.stringify({ role: 'player', name, idx: existingIdx }));
@@ -171,14 +209,12 @@ const GameState = {
     catch { return null; }
   },
 
-  // CAMBIO SEGURO: Inicializa limpiando tableros y estados previos para permitir el arranque limpio
   startGame() {
     const state = GameState.get();
     state.started = true;
     state.ended = false;
     state.startedAt = Date.now();
     
-    // Si ya hay jugadores en la sala, les reseteamos puntuaciones y tableros para la nueva partida
     if (state.players && state.players.length > 0) {
       state.players.forEach(p => {
         p.score = 0;
@@ -187,7 +223,6 @@ const GameState = {
         p.grid = generateGrid();
       });
     }
-    
     if (state.finalResults) delete state.finalResults;
 
     GameState.addLog(state, '🚀 ¡La partida ha comenzado!');
@@ -249,4 +284,3 @@ const GameState = {
     return true;
   },
 };
-
