@@ -47,55 +47,71 @@ const GEM_CODES = {
 
 // Genera cuadrícula 7×7:
 function generateGrid() {
-  const grid = [];
-  const GEM_TYPES = [1, 2, 3, 4, 5];
-
-  for (let r = 0; r < GRID_ROWS; r++) {
-    let rowIds = [];
-    const usedIds = new Set();
-
-    for (const t of GEM_TYPES) {
-      const candidates = GEM_IMAGES.filter(g => g.type === t && !usedIds.has(g.id));
-      const pick = candidates[Math.floor(Math.random() * candidates.length)];
-      rowIds.push(pick.id);
-      usedIds.add(pick.id);
-    }
-
-    while (rowIds.length < GRID_COLS) {
-      const remaining = GEM_IMAGES.filter(g => !usedIds.has(g.id));
-      if (!remaining.length) break;
-      const pick = remaining[Math.floor(Math.random() * remaining.length)];
-      rowIds.push(pick.id);
-      usedIds.add(pick.id);
-    }
-
-    let attempts = 0;
-    let isValid = false;
-    while (!isValid && attempts < 100) {
-      rowIds = rowIds.sort(() => Math.random() - 0.5);
-      isValid = true;
+  const TOTAL_CELLS = GRID_ROWS * GRID_COLS; // 49
+  
+  // Asegurar que cada gema aparece al menos una vez
+  let allGemIds = GEM_IMAGES.map(g => g.id); // [1, 2, 3, ..., 25]
+  
+  // Completar hasta 49 con gemas al azar
+  while (allGemIds.length < TOTAL_CELLS) {
+    const randomGem = GEM_IMAGES[Math.floor(Math.random() * GEM_IMAGES.length)];
+    allGemIds.push(randomGem.id);
+  }
+  
+  // Intentar distribuir validamente
+  let attempts = 0;
+  let grid = null;
+  
+  while (attempts < 100) {
+    // Mezclar
+    allGemIds = allGemIds.sort(() => Math.random() - 0.5);
+    
+    // Distribuir en filas
+    let tempGrid = [];
+    let idx = 0;
+    let isValid = true;
+    
+    for (let r = 0; r < GRID_ROWS && isValid; r++) {
+      let row = [];
+      for (let c = 0; c < GRID_COLS; c++) {
+        row.push(allGemIds[idx++]);
+      }
       
-      for (let i = 0; i < rowIds.length - 2; i++) {
-        const type1 = GEM_IMAGES.find(g => g.id === rowIds[i]).type;
-        const type2 = GEM_IMAGES.find(g => g.id === rowIds[i + 1]).type;
-        const type3 = GEM_IMAGES.find(g => g.id === rowIds[i + 2]).type;
+      // Validar que no haya 3 del mismo tipo seguidas
+      for (let i = 0; i < row.length - 2; i++) {
+        const type1 = GEM_IMAGES.find(g => g.id === row[i]).type;
+        const type2 = GEM_IMAGES.find(g => g.id === row[i + 1]).type;
+        const type3 = GEM_IMAGES.find(g => g.id === row[i + 2]).type;
         
         if (type1 === type2 && type2 === type3) {
           isValid = false;
           break;
         }
       }
-      attempts++;
+      
+      if (isValid) {
+        tempGrid.push(row);
+      }
     }
-
-    const row = rowIds.map(gemId => ({
+    
+    if (isValid && tempGrid.length === GRID_ROWS) {
+      grid = tempGrid;
+      break;
+    }
+    
+    attempts++;
+  }
+  
+  // Convertir a formato de celdas
+  const result = grid.map(row =>
+    row.map(gemId => ({
       gemId,
       revealed: false,
       code: GEM_CODES[gemId]
-    }));
-    grid.push(row);
-  }
-  return grid;
+    }))
+  );
+  
+  return result;
 }
 
 function timeAgo(ts) {
@@ -269,6 +285,7 @@ const GameState = {
     if (inputCode !== cell.code) return false;
 
     cell.revealed = true;
+    cell.code = null;
     player.moves++;
     player.lastAction = { row, col, ts: Date.now() };
     const gem = GEM_IMAGES.find(g => g.id === cell.gemId);
