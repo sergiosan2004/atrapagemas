@@ -279,7 +279,7 @@
 
   function renderStats(state) {
     const total = GRID_ROWS * GRID_COLS;
-    const totalPossible = state.players.length * total;
+    const totalPossible = (state.players || []).length * total;
     const totalRevealed = state.players.reduce((s, p) => s + revealedCount(p.grid), 0);
     const totalMoves    = state.players.reduce((s, p) => s + p.moves, 0);
     const pct = totalPossible ? Math.round(totalRevealed / totalPossible * 100) : 0;
@@ -339,21 +339,26 @@
 
   function refresh() {
     const state = GameState.get();
-    renderPlayers(state);
-    renderStats(state);
-    renderLog(state);
+    // Normalizar jugadores (objeto Firebase → array)
+    const players = GameState.getPlayers();
+    const stateWithArray = { ...state, players };
+    renderPlayers(stateWithArray);
+    renderStats(stateWithArray);
+    renderLog(stateWithArray);
   }
 
-  function adminStart() {
+  async function adminStart() {
     const state = GameState.get();
     if (state.started) return;
-    GameState.startGame();
+    document.getElementById('btn-start').disabled = true;
+    document.getElementById('btn-start').textContent = '⏳ Iniciando…';
+    await GameState.startGame();
     refresh();
   }
 
-  function adminEnd() {
+  async function adminEnd() {
     if (!confirm('¿Terminar la partida?\n\nSe borrarán todos los jugadores y quedará lista para una nueva ronda.')) return;
-    GameState.endGame();
+    await GameState.endGame();
     location.href = 'leaderboard.html';
   }
 

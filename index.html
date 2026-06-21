@@ -175,7 +175,7 @@
     if (role === 'player') document.getElementById('admin-code-group').style.display = 'none';
   }
 
-  function enterGame() {
+  async function enterGame() {
     document.getElementById('code-error').style.display = 'none';
 
     if (selectedRole === 'admin') {
@@ -185,26 +185,35 @@
         document.getElementById('code-error').style.display = 'block';
         return;
       }
-      GameState.joinAsAdmin();
+      const btn = document.querySelector('.enter-btn');
+      btn.textContent = 'Conectando…'; btn.disabled = true;
+      await GameState.joinAsAdmin();
       window.location.href = 'admin.html';
 
     } else {
       const name = document.getElementById('player-name').value.trim();
       if (!name) { document.getElementById('player-name').focus(); return; }
-      const slot = GameState.joinAsPlayer(name);
-      if (slot === null) { alert('La partida está llena (máximo 5 jugadores).'); return; }
+      const btn = document.querySelector('.enter-btn');
+      btn.textContent = 'Uniéndose…'; btn.disabled = true;
+      const slot = await GameState.joinAsPlayer(name);
+      if (slot === null) {
+        btn.textContent = 'Entrar al juego →'; btn.disabled = false;
+        alert('La partida está llena (máximo 5 jugadores).');
+        return;
+      }
       window.location.href = 'player.html';
     }
   }
 
   function renderSlots() {
     const state = GameState.get();
+    const players = GameState.getPlayers();
     const container = document.getElementById('player-slots');
     const allSlots = [
       { label: 'Administrador', isAdmin: true, filled: !!state.admin },
       ...Array.from({ length: 5 }, (_, i) => ({
-        label: state.players[i] ? state.players[i].name : `Jugador ${i + 1}`,
-        isAdmin: false, filled: !!state.players[i]
+        label: players[i] ? players[i].name : `Jugador ${i + 1}`,
+        isAdmin: false, filled: !!players[i]
       }))
     ];
     container.innerHTML = allSlots.map(s => `

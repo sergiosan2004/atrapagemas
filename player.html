@@ -405,7 +405,7 @@
   function handleCellClick(r, c) {
     const state = GameState.get();
     if (!state.started || state.ended) return;
-    const player = state.players[myIdx];
+    const player = GameState.getPlayers()[myIdx];
     if (!player) return;
     const activeRow = getActiveRow(player.grid);
     if (r !== activeRow) return;
@@ -431,12 +431,12 @@
     document.getElementById('code-modal-bg').classList.add('hidden');
   }
 
-  function submitCode() {
+  async function submitCode() {
     if (!pendingCell) return;
     const code = ['d0','d1','d2','d3'].map(id => document.getElementById(id).value).join('');
     if (code.length < 4) return;
 
-    const ok = GameState.revealCell(myIdx, pendingCell.r, pendingCell.c, code);
+    const ok = await GameState.revealCell(myIdx, pendingCell.r, pendingCell.c, code);
 
     if (ok) {
       // Cerrar modal y refrescar
@@ -510,7 +510,7 @@
     }
 
     // Ranking
-    const sorted = [...state.players].sort((a,b) => b.score - a.score);
+    const sorted = [...(state.players || [])].sort((a,b) => b.score - a.score);
     const icons = ['🥇','🥈','🥉','4°','5°'];
     document.getElementById('ranking-mini').innerHTML = sorted.map((p, i) => {
       const isMe = p.name === me.name;
@@ -524,7 +524,8 @@
 
   function refresh() {
     const state = GameState.get();
-    const player = state.players[myIdx];
+    const players = GameState.getPlayers();
+    const player = players[myIdx];
     if (!player) return;
 
     const overlay = document.getElementById('wait-overlay');
@@ -547,8 +548,9 @@
       exitModal.classList.add('hidden');
     }
 
-    buildGrid(player, state);
-    renderSidePanel(player, state);
+    const stateWithArray = { ...state, players };
+    buildGrid(player, stateWithArray);
+    renderSidePanel(player, stateWithArray);
   }
 
   refresh();
