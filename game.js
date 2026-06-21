@@ -1,9 +1,9 @@
 // ═══════════════════════════════════════════════
-//   ATRAPAGEMAS — Lógica central (Conectado a Firebase RTDB)
+//   ATRAPAGEMAS — Lógica central (Conectado a Firebase RTDB - Multidispositivo)
 // ═══════════════════════════════════════════════
 
 const ADMIN_CODE = 'gemas2025';
-const MAX_PLAYERS = 5;
+const MAX_PLAYERS = 8; // <--- Ampliado para permitir más de 6 dispositivos en total
 const GRID_COLS = 7;
 const GRID_ROWS = 7;
 
@@ -47,26 +47,19 @@ const GEM_CODES = {
 
 // Genera cuadrícula 7×7:
 function generateGrid() {
-  const TOTAL_CELLS = GRID_ROWS * GRID_COLS; // 49
+  const TOTAL_CELLS = GRID_ROWS * GRID_COLS;
+  let allGemIds = GEM_IMAGES.map(g => g.id);
   
-  // Asegurar que cada gema aparece al menos una vez
-  let allGemIds = GEM_IMAGES.map(g => g.id); // [1, 2, 3, ..., 25]
-  
-  // Completar hasta 49 con gemas al azar
   while (allGemIds.length < TOTAL_CELLS) {
     const randomGem = GEM_IMAGES[Math.floor(Math.random() * GEM_IMAGES.length)];
     allGemIds.push(randomGem.id);
   }
   
-  // Intentar distribuir validamente
   let attempts = 0;
   let grid = null;
   
   while (attempts < 100) {
-    // Mezclar
     allGemIds = allGemIds.sort(() => Math.random() - 0.5);
-    
-    // Distribuir en filas
     let tempGrid = [];
     let idx = 0;
     let isValid = true;
@@ -77,7 +70,6 @@ function generateGrid() {
         row.push(allGemIds[idx++]);
       }
       
-      // Validar que no haya 3 del mismo tipo seguidas
       for (let i = 0; i < row.length - 2; i++) {
         const type1 = GEM_IMAGES.find(g => g.id === row[i]).type;
         const type2 = GEM_IMAGES.find(g => g.id === row[i + 1]).type;
@@ -88,30 +80,22 @@ function generateGrid() {
           break;
         }
       }
-      
-      if (isValid) {
-        tempGrid.push(row);
-      }
+      if (isValid) tempGrid.push(row);
     }
-    
     if (isValid && tempGrid.length === GRID_ROWS) {
       grid = tempGrid;
       break;
     }
-    
     attempts++;
   }
   
-  // Convertir a formato de celdas
-  const result = grid.map(row =>
+  return grid.map(row =>
     row.map(gemId => ({
       gemId,
       revealed: false,
       code: GEM_CODES[gemId]
     }))
   );
-  
-  return result;
 }
 
 function timeAgo(ts) {
@@ -123,47 +107,69 @@ function timeAgo(ts) {
 }
 
 
-// 🌐 ── CONEXIÓN DIRECTA CON TU ENLACE DE FIREBASE ──
-const FIREBASE_URL = 'https://atrapagemas-ea12d-default-rtdb.firebaseio.com/partida.json';
+// 🌐 ── CONEXIÓN SEGURA CON TU ENLACE DE FIREBASE ──
+const FIREBASE_BASE_URL = 'https://atrapagemas-ea12d-default-rtdb.firebaseio.com/partida';
 let cachedState = { admin: null, players: [], started: false, ended: false, log: [], startedAt: null };
 
-// Descarga el estado actual de la nube
+// Descarga y normaliza el estado de la nube de manera segura
 async function fetchFromFirebase() {
   try {
-    const response = await fetch(FIREBASE_URL);
+    const response = await fetch(`${FIREBASE_BASE_URL}.json`);
     const data = await response.json();
     if (data) {
       cachedState = data;
-      if (!cachedState.players) cachedState.players = [];
-      if (!cachedState.log) cachedState.log = [];
+      
+      // Convierte el nodo de jugadores en un Array limpio sin importar cómo lo devuelva Firebase
+      if (data.players) {
+        cachedState.players = Array.isArray(data.players) 
+          ? data.players.filter(Boolean) 
+          : Object.values(data.players).filter(Boolean);
+      } else {
+        cachedState.players = [];
+      }
+
+      // Procesa la cola de logs ordenándola por tiempo (descendiente)
+      if (data.log) {
+        const logsArray = Array.isArray(data.log) ? data.log.filter(Boolean) : Object.values(data.log);
+        cachedState.log = logsArray.sort((a, b) => b.ts - a.ts);
+      } else {
+        cachedState.log = [];
+      }
+    } else {
+      cachedState = { admin: null, players: [], started: false, ended: false, log: [], startedAt: null };
     }
   } catch (error) {
     console.error("Error al leer de Firebase:", error);
   }
 }
 
-// Sube los cambios a la nube instantáneamente
-async function saveToFirebase(state) {
+// Funciones de envío granular (Evitan que los dispositivos se pisen entre sí)
+async function firebasePut(path, data) {
   try {
-    await fetch(FIREBASE_URL, {
+    await fetch(`${FIREBASE_BASE_URL}/${path}.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(state)
+      body: JSON.stringify(data)
     });
-  } catch (error) {
-    console.error("Error al guardar en Firebase:", error);
-  }
+  } catch (e) { console.error(e); }
 }
 
-// Bucle que sincroniza y actualiza los gráficos de la pantalla cada 1 segundo
+async function firebasePatch(path, data) {
+  try {
+    await fetch(`${FIREBASE_BASE_URL}/${path}.json`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  } catch (e) { console.error(e); }
+}
+
+// Bucle de sincronización cada 1 segundo
 setInterval(async () => {
   await fetchFromFirebase();
-  if (typeof refresh === 'function') {
-    refresh();
-  }
+  if (typeof refresh === 'function') refresh();
 }, 1000);
 
-// Descarga inicial inmediata
 fetchFromFirebase();
 
 
@@ -179,43 +185,55 @@ const GameState = {
 
   save(state) {
     cachedState = state;
-    saveToFirebase(state);
+    // Fallback de compatibilidad por si acaso
+    fetch(`${FIREBASE_BASE_URL}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state)
+    }).catch(console.error);
   },
 
   addLog(state, msg) {
-    if (!state.log) state.log = [];
-    state.log.unshift({ msg, ts: Date.now() });
-    if (state.log.length > 150) state.log.length = 150;
+    // Usa POST para que Firebase encole los mensajes de todos los móviles sin chocar
+    fetch(`${FIREBASE_BASE_URL}/log.json`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ msg, ts: Date.now() })
+    }).catch(console.error);
   },
 
-  joinAsAdmin() {
-    const state = GameState.get();
-    state.admin = { joinedAt: Date.now() };
-    GameState.addLog(state, '⭐ Administrador conectado');
-    GameState.save(state);
+  async joinAsAdmin() {
+    await firebasePut('admin', { joinedAt: Date.now() });
+    GameState.addLog(null, '⭐ Administrador conectado');
     localStorage.setItem('atrapagemas_me', JSON.stringify({ role: 'admin' }));
   },
 
-  joinAsPlayer(name) {
-    const state = GameState.get();
-    if (!state.players) state.players = [];
-    const existingIdx = state.players.findIndex(p => p.name === name);
+  async joinAsPlayer(name) {
+    // Forzamos lectura en tiempo real antes de entrar para asegurar un hueco libre real
+    const res = await fetch(`${FIREBASE_BASE_URL}/players.json`);
+    const currentData = await res.json() || {};
+    const currentPlayers = Array.isArray(currentData) ? currentData.filter(Boolean) : Object.values(currentData).filter(Boolean);
+
+    const existingIdx = currentPlayers.findIndex(p => p.name === name);
     if (existingIdx !== -1) {
       localStorage.setItem('atrapagemas_me', JSON.stringify({ role: 'player', name, idx: existingIdx }));
       return existingIdx;
     }
-    if (state.players.length >= MAX_PLAYERS) return null;
-    const idx = state.players.length;
-    state.players.push({
+    if (currentPlayers.length >= MAX_PLAYERS) return null;
+    
+    const idx = currentPlayers.length;
+    const newPlayer = {
       name, idx,
       joinedAt: Date.now(),
       grid: generateGrid(),
       score: 0,
       moves: 0,
       lastAction: null,
-    });
-    GameState.addLog(state, `✦ ${name} se unió como Jugador ${idx + 1}`);
-    GameState.save(state);
+    };
+    
+    // Guarda exclusivamente en la posición asignada para no pisar a nadie
+    await firebasePut(`players/${idx}`, newPlayer);
+    GameState.addLog(null, `✦ ${name} se unió como Jugador ${idx + 1}`);
     localStorage.setItem('atrapagemas_me', JSON.stringify({ role: 'player', name, idx }));
     return idx;
   },
@@ -225,49 +243,47 @@ const GameState = {
     catch { return null; }
   },
 
-  startGame() {
+  async startGame() {
     const state = GameState.get();
-    state.started = true;
-    state.ended = false;
-    state.startedAt = Date.now();
-    
+    await fetch(`${FIREBASE_BASE_URL}/finalResults.json`, { method: 'DELETE' });
+
     if (state.players && state.players.length > 0) {
-      state.players.forEach(p => {
+      for (let i = 0; i < state.players.length; i++) {
+        const p = state.players[i];
         p.score = 0;
         p.moves = 0;
         p.lastAction = null;
         p.grid = generateGrid();
-      });
+        await firebasePut(`players/${p.idx}`, p);
+      }
     }
-    if (state.finalResults) delete state.finalResults;
-
-    GameState.addLog(state, '🚀 ¡La partida ha comenzado!');
-    GameState.save(state);
+    
+    await firebasePatch('', { started: true, ended: false, startedAt: Date.now() });
+    GameState.addLog(null, '🚀 ¡La partida ha comenzado!');
   },
 
-  endGame() {
+  async endGame() {
     const state = GameState.get();
-    state.ended = true;
-    state.started = false;
-    GameState.addLog(state, '🏁 La partida ha finalizado.');
     const finalResults = state.players.map(p => ({
       name: p.name,
       score: p.score,
       moves: p.moves,
       revealed: p.grid.flat().filter(c => c.revealed).length
     }));
-    state.finalResults = finalResults;
-    state.players = [];
-    state.admin = null;
-    GameState.save(state);
+
+    await firebasePut('finalResults', finalResults);
+    await firebasePatch('', { ended: true, started: false, admin: null });
+    await fetch(`${FIREBASE_BASE_URL}/players.json`, { method: 'DELETE' });
+    
+    GameState.addLog(null, '🏁 La partida ha finalizado.');
     localStorage.removeItem('atrapagemas_me');
   },
 
-  revealCell(playerIdx, row, col, inputCode) {
+  async revealCell(playerIdx, row, col, inputCode) {
     const state = GameState.get();
     if (!state.started || state.ended) return false;
 
-    const player = state.players[playerIdx];
+    const player = state.players.find(p => p.idx === playerIdx);
     if (!player) return false;
 
     let activeRow = -1;
@@ -289,15 +305,16 @@ const GameState = {
     player.moves++;
     player.lastAction = { row, col, ts: Date.now() };
     const gem = GEM_IMAGES.find(g => g.id === cell.gemId);
-    GameState.addLog(state, `◆ ${player.name} desbloqueó "${gem.name}" (fila ${row + 1})`);
+    GameState.addLog(null, `◆ ${player.name} desbloqueó "${gem.name}" (fila ${row + 1})`);
     player.score += 10;
 
     if (player.grid[row].every(c => c.revealed)) {
       player.score += 25;
-      GameState.addLog(state, `🎉 ${player.name} completó la fila ${row + 1} (+25 bonus)`);
+      GameState.addLog(null, `🎉 ${player.name} completó la fila ${row + 1} (+25 bonus)`);
     }
 
-    GameState.save(state);
+    // Actualiza en caliente únicamente la ficha de este jugador concreto
+    await firebasePut(`players/${playerIdx}`, player);
     return true;
   },
 };
